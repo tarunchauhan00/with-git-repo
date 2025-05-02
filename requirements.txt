@@ -1,0 +1,6 @@
+mkdocs>=1.6
+mkdocs-material>=9.6
+mkdocs-pdf-export-plugin>=0.5
+weasyprint>=65.1
+mkdocs-mermaid2-plugin>=1.2
+mkdocs-awesome-pages-plugin>=2.6

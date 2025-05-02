@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Create a new docs‑repo</title>
+</head>
+<body>
+  <h1>📦 New Documentation Repository</h1>
+  <form id="newRepoForm">
+    <label>
+      Repository name:
+      <input type="text" id="repoName" required placeholder="my‑awesome‑docs"/>
+    </label>
+    <button type="submit">Create & Edit Docs</button>
+  </form>
+  <script>
+    document.getElementById('newRepoForm').onsubmit = async e => {
+      e.preventDefault();
+      const name = document.getElementById('repoName').value;
+      // call our Netlify Function
+      const res = await fetch('/.netlify/functions/create‑repo', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      const { org, repo } = await res.json();
+      // now redirect into the CMS admin, passing org/repo
+      window.location.href = `/admin/index.html?org=${org}&repo=${repo}`;
+    };
+  </script>
+</body>
+</html>

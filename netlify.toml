@@ -1,0 +1,22 @@
+[build]
+  # 1) Upgrade pip  2) Install exactly what's in requirements.txt  3) Build MkDocs site
+  command   = "pip install --upgrade pip && pip install -r requirements.txt && mkdocs build"
+  publish   = "site"
+
+[build.environment]
+  # Pin Python 3.9 for Netlify’s build image
+  PYTHON_VERSION = "3.9"
+
+[context.production.environment]
+  # Ensure Git Gateway works
+  GIT_GATEWAY_ENABLED = "true"
+
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/git-gateway/:splat"
+  status = 200
+  force = true
+
+[build]
+  functions = "netlify/functions"
