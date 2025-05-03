@@ -4,44 +4,129 @@
     <meta charset="utf-8" />
     <title>Content Manager</title>
     <base href="/" />
-
-    <!-- Tell Netlify-CMS where its config lives -->
-    <link rel="cms-config-url" href="/admin/config.yaml" type="text/yaml" />
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 2rem;
+        text-align: center;
+      }
+      #controls {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      #controls h2 {
+        margin-bottom: 1rem;
+      }
+      #controls button {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        margin: 0.5rem;
+        cursor: pointer;
+      }
+      #nc-root {
+        margin-top: 2rem;
+      }
+    </style>
   </head>
 
   <body>
-    <!-- 1) Mount point for the CMS UI -->
-    <div id="nc-root"></div>
+    <!-- Buttons when no repo specified -->
+    <div id="controls" style="display: none;">
+      <h2>📘 Documentation CMS</h2>
+      <button id="defaultBtn">Continue with Default Project</button>
+      <button id="newBtn">Create New Project</button>
+    </div>
 
-    <!-- 2) Load Identity widget and CMS bundle at the end, after DOM is ready -->
+    <!-- Mount point for the CMS UI -->
+    <div id="nc-root" style="display: none;"></div>
+
     <script>
       window.CMS_MANUAL_INIT = true;
-      document.addEventListener('DOMContentLoaded', function() {
-        // Load Netlify Identity widget
-        var idScript = document.createElement('script');
-        idScript.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-        idScript.onload = function() {
-          // Initialize Identity (open signup enabled)
+
+      const params = new URLSearchParams(window.location.search);
+      const repoParam = params.get("repo");
+      const defaultRepo = "your-org/your-default-repo"; // ← change this!
+
+      const normalizeRepo = (input) => {
+        try {
+          const url = new URL(input);
+          return url.pathname.slice(1).replace(/\.git$/, "");
+        } catch {
+          return input.trim().replace(/^\/|\.git$/g, "");
+        }
+      };
+
+      function loadCMS(repo) {
+        document.getElementById("controls").style.display = "none";
+        document.getElementById("nc-root").style.display = "block";
+
+        // Load Identity script
+        var idScript = document.createElement("script");
+        idScript.src = "https://identity.netlify.com/v1/netlify-identity-widget.js";
+        idScript.onload = function () {
           netlifyIdentity.init({ open_signup: true });
-          netlifyIdentity.on('init', function(user) {
-            if (!user) {
-              netlifyIdentity.open('login');
-            }
+          netlifyIdentity.on("init", function (user) {
+            if (!user) netlifyIdentity.open("login");
           });
         };
         document.body.appendChild(idScript);
 
-        // Load Netlify CMS
-        var cmsScript = document.createElement('script');
-        cmsScript.src = 'https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js';
-        cmsScript.onload = function() {
-          // Now manually init the CMS into our #nc-root
+        // Load CMS script
+        var cmsScript = document.createElement("script");
+        cmsScript.src = "https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js";
+        cmsScript.onload = function () {
           CMS.init({
-            configPath: '/admin/config.yaml',
-            root: document.getElementById('nc-root')
+            config: {
+              backend: {
+                name: "github",
+                repo: repo,
+                branch: "main",
+                auth_type: "implicit",
+                app_id: "Ov23liJDcxTi1GqFJipa", // Replace this
+              },
+              media_folder: "docs/images",
+              public_folder: "/images",
+              collections: [
+                {
+                  name: "pages",
+                  label: "Pages",
+                  folder: "docs",
+                  create: true,
+                  slug: "{{slug}}",
+                  fields: [
+                    { label: "Title", name: "title", widget: "string" },
+                    { label: "Body", name: "body", widget: "markdown" },
+                  ],
+                },
+              ],
+            },
+            root: document.getElementById("nc-root"),
           });
         };
         document.body.appendChild(cmsScript);
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        if (repoParam) {
+          loadCMS(normalizeRepo(repoParam));
+        } else {
+          const controls = document.getElementById("controls");
+          controls.style.display = "block";
+
+          document.getElementById("defaultBtn").onclick = () => {
+            loadCMS(defaultRepo);
+          };
+
+          document.getElementById("newBtn").onclick = () => {
+            const userInput = prompt(
+              "Enter the GitHub repo URL or owner/repo name:\n(e.g. https://github.com/your-org/new-repo)"
+            );
+            if (!userInput) return;
+            const repo = normalizeRepo(userInput);
+            history.replaceState(null, "", "?repo=" + encodeURIComponent(repo));
+            loadCMS(repo);
+          };
+        }
       });
     </script>
   </body>
