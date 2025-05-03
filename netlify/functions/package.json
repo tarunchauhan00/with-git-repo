@@ -1,1 +1,10 @@
-{ "dependencies": { "@octokit/rest": "^18.0.0" } }
+{
+    "name": "create-repo",
+    "version": "1.0.0",
+    "description": "Netlify Function to scaffold a new MkDocs repo via Octokit",
+    "main": "create-repo.js",
+    "dependencies": {
+      "@octokit/rest": "^19.0.7"
+    }
+  }
+  
