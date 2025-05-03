@@ -6,78 +6,66 @@
   <base href="/" />
   <style>
     body { font-family: sans-serif; padding: 2rem; }
-    #repo-form { max-width: 400px; }
-    label, input, button { display: block; width: 100%; margin-bottom: 1rem; }
     #nc-root { margin-top: 2rem; }
   </style>
 </head>
 <body>
 
-  <!-- STEP 1: ask user for the target GitHub repo -->
-  <div id="repo-form">
-    <h2>Enter GitHub Repo</h2>
-    <label>
-      Repo (owner/name or full URL)
-      <input type="text" id="repoInput" placeholder="e.g. my‑org/my‑docs-repo" />
-    </label>
-    <button id="startCms">Load CMS →</button>
-  </div>
-
-  <!-- STEP 2: CMS UI mounts here -->
-  <div id="nc-root" style="display:none;"></div>
+  <h2>🛠️ Documentation Editor</h2>
+  <div id="nc-root"></div>
 
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
   <script>
-    function normalizeRepo(input) {
+    // Grab the raw repo param
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('repo');
+    if (!raw) {
+      document.body.innerHTML = '<p style="color:red;">No repo specified. Go back and enter a repo URL.</p>';
+      throw new Error('Missing repo parameter');
+    }
+
+    // Normalize “full URL” → “owner/name”
+    function normalize(input) {
       try {
         const u = new URL(input);
         return u.pathname.slice(1).replace(/\.git$/, '');
       } catch {
-        return input.trim().replace(/\.git$/, '');
+        return input.replace(/(^\/|\.git$)/g, '');
       }
     }
+    const repo = normalize(decodeURIComponent(raw));
 
-    document.getElementById('startCms').onclick = () => {
-      const raw = document.getElementById('repoInput').value;
-      if (!raw) return alert('Please enter a repo.');
-      const repo = normalizeRepo(raw);
+    // Init Netlify Identity for login
+    netlifyIdentity.init({ open_signup: true });
+    netlifyIdentity.on('init', user => { if (!user) netlifyIdentity.open('login'); });
 
-      document.getElementById('repo-form').style.display = 'none';
-      document.getElementById('nc-root').style.display = 'block';
-
-      // Initialize Netlify Identity for GitHub OAuth
-      netlifyIdentity.init({ open_signup: true });
-      netlifyIdentity.on('init', user => {
-        if (!user) netlifyIdentity.open('login');
-      });
-
-      // Build a dynamic CMS config
-      const config = {
-        backend: {
-          name: 'github',
-          repo: repo,
-          branch: 'main',
-          auth_type: 'implicit',
-          app_id: 'Ov23liJDcxTi1GqFJipa'
-        },
-        media_folder: 'docs/images',
-        public_folder: '/images',
-        collections: [{
-          name: 'pages',
-          label: 'Pages',
-          folder: 'docs',
-          create: true,
-          slug: '{{slug}}',
-          fields: [
-            { label: 'Title', name: 'title', widget: 'string' },
-            { label: 'Body',  name: 'body',  widget: 'markdown' }
-          ]
-        }]
-      };
-
-      CMS.init({ config });
+    // Build dynamic CMS config
+    const config = {
+      backend: {
+        name: 'github',
+        repo: repo,              // user‑supplied “owner/name”
+        branch: 'main',
+        auth_type: 'implicit',
+        app_id: '<YOUR_GITHUB_OAUTH_APP_CLIENT_ID>'
+      },
+      media_folder: 'docs/images',
+      public_folder: '/images',
+      collections: [{
+        name: 'pages',
+        label: 'Pages',
+        folder: 'docs',
+        create: true,
+        slug: '{{slug}}',
+        fields: [
+          { label: 'Title', name: 'title', widget: 'string' },
+          { label: 'Body',  name: 'body',  widget: 'markdown' }
+        ]
+      }]
     };
+
+    // Launch the CMS
+    CMS.init({ config });
   </script>
 </body>
 </html>
