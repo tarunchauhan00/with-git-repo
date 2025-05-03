@@ -57,11 +57,8 @@
           CMS.init({
             config: {
               backend: {
-                name: "github",
-                repo: repo,
-                branch: "main",
-                auth_type: "implicit",
-                app_id: "<YOUR_GITHUB_OAUTH_CLIENT_ID>"
+                name: "git-gateway",
+                branch: "main"
               },
               media_folder: "docs/images",
               public_folder: "/images",
