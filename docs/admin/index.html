@@ -6,66 +6,95 @@
   <base href="/" />
   <style>
     body { font-family: sans-serif; padding: 2rem; }
+    #controls, #nc-root { max-width: 600px; margin: auto; }
+    #controls button { margin: 0.5rem 0; padding: 0.75rem; width: 100%; font-size: 1rem; }
     #nc-root { margin-top: 2rem; }
   </style>
 </head>
 <body>
+  <div id="controls" style="display: none;">
+    <h2>🛠️ Documentation Editor</h2>
+    <button id="useDefault">Continue with Default Docs</button>
+    <button id="newProject">Start New Project Documentation</button>
+  </div>
 
-  <h2>🛠️ Documentation Editor</h2>
-  <div id="nc-root"></div>
+  <div id="nc-root" style="display: none;"></div>
 
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
   <script>
-    // Grab the raw repo param
     const params = new URLSearchParams(window.location.search);
-    const raw = params.get('repo');
-    if (!raw) {
-      document.body.innerHTML = '<p style="color:red;">No repo specified. Go back and enter a repo URL.</p>';
-      throw new Error('Missing repo parameter');
-    }
+    let repoParam = params.get('repo');
 
-    // Normalize “full URL” → “owner/name”
-    function normalize(input) {
+    // Your “default” docs repo (owner/name)
+    const defaultRepo = 'my-org/my-default-docs';
+
+    function normalizeRepo(input) {
       try {
         const u = new URL(input);
         return u.pathname.slice(1).replace(/\.git$/, '');
       } catch {
-        return input.replace(/(^\/|\.git$)/g, '');
+        return input.trim().replace(/(^\/|\.git$)/g, '');
       }
     }
-    const repo = normalize(decodeURIComponent(raw));
 
-    // Init Netlify Identity for login
-    netlifyIdentity.init({ open_signup: true });
-    netlifyIdentity.on('init', user => { if (!user) netlifyIdentity.open('login'); });
+    function initCMS(repo) {
+      document.getElementById('controls').style.display = 'none';
+      document.getElementById('nc-root').style.display = 'block';
 
-    // Build dynamic CMS config
-    const config = {
-      backend: {
-        name: 'github',
-        repo: repo,              // user‑supplied “owner/name”
-        branch: 'main',
-        auth_type: 'implicit',
-        app_id: '<YOUR_GITHUB_OAUTH_APP_CLIENT_ID>'
-      },
-      media_folder: 'docs/images',
-      public_folder: '/images',
-      collections: [{
-        name: 'pages',
-        label: 'Pages',
-        folder: 'docs',
-        create: true,
-        slug: '{{slug}}',
-        fields: [
-          { label: 'Title', name: 'title', widget: 'string' },
-          { label: 'Body',  name: 'body',  widget: 'markdown' }
-        ]
-      }]
-    };
+      netlifyIdentity.init({ open_signup: true });
+      netlifyIdentity.on('init', user => { if (!user) netlifyIdentity.open('login'); });
 
-    // Launch the CMS
-    CMS.init({ config });
+      const config = {
+        backend: {
+          name: 'github',
+          repo: repo,
+          branch: 'main',
+          auth_type: 'implicit',
+          app_id: '<YOUR_GITHUB_OAUTH_APP_CLIENT_ID>'
+        },
+        media_folder: 'docs/images',
+        public_folder: '/images',
+        collections: [{
+          name: 'pages',
+          label: 'Pages',
+          folder: 'docs',
+          create: true,
+          slug: '{{slug}}',
+          fields: [
+            { label: 'Title', name: 'title', widget: 'string' },
+            { label: 'Body',  name: 'body',  widget: 'markdown' }
+          ]
+        }]
+      };
+
+      CMS.init({ config });
+    }
+
+    // If user already provided ?repo=… → load immediately
+    if (repoParam) {
+      initCMS(normalizeRepo(decodeURIComponent(repoParam)));
+    } else {
+      // Otherwise show the two‑button control panel
+      const ctl = document.getElementById('controls');
+      ctl.style.display = 'block';
+
+      document.getElementById('useDefault').onclick = () => {
+        initCMS(defaultRepo);
+      };
+
+      document.getElementById('newProject').onclick = () => {
+        const raw = prompt(
+          "Enter the GitHub repo URL or owner/name for the new docs:\n" +
+          "(e.g. https://github.com/your-org/new-docs or your-org/new-docs)"
+        );
+        if (!raw) return;
+        const repo = normalizeRepo(raw);
+        // update URL so user can bookmark/share
+        history.replaceState(null, '', '?repo=' + encodeURIComponent(repo));
+        initCMS(repo);
+      };
+    }
   </script>
 </body>
 </html>
