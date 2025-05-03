@@ -10,12 +10,15 @@
   GIT_GATEWAY_ENABLED = "true"
 
 [[redirects]]
-  from    = "/api/*"
-  to      = "/.netlify/functions/git-gateway/:splat"
-  status  = 200
-  force   = true
+  from   = "/api/*"
+  to     = "/.netlify/functions/git-gateway/:splat"
+  status = 200
+  force  = true
 
 [[redirects]]
   from   = "/admin"
   to     = "/admin/index.html"
   status = 200
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
