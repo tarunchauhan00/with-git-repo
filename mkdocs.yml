@@ -1,15 +1,31 @@
+# mkdocs.yml
 site_name: My Docs Site
 site_description: Documentation with Netlify CMS
 
 theme:
   name: material
 
+# We remove the static nav: section so awesome-pages can auto-generate it.
+# If you want to force-order or hide certain files, see the _.pages trick below.
+
 docs_dir: docs
 
+# Ensure admin UI is published
 include:
   - admin/**
 
 plugins:
   - search
   - awesome-pages:
+      # When a folder has a single page, still show it instead of collapsing
       collapse_single_pages: false
+
+# Optional extra config for awesome-pages:
+# You can drop a file named docs/_pages in any folder to explicitly list & order pages.
+# Example docs/_pages:
+#   - index.md
+#   - introduction.md
+#   - usage.md
+#   - faq.md
+#   - test-page.md
+#   - test-page-2.md

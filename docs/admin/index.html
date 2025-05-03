@@ -1,100 +1,48 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>Docs Admin</title>
-  <base href="/" />
-  <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    #controls, #nc-root { max-width: 600px; margin: auto; }
-    #controls button { margin: 0.5rem 0; padding: 0.75rem; width: 100%; font-size: 1rem; }
-    #nc-root { margin-top: 2rem; }
-  </style>
-</head>
-<body>
-  <div id="controls" style="display: none;">
-    <h2>🛠️ Documentation Editor</h2>
-    <button id="useDefault">Continue with Default Docs</button>
-    <button id="newProject">Start New Project Documentation</button>
-  </div>
+  <head>
+    <meta charset="utf-8" />
+    <title>Content Manager</title>
+    <base href="/" />
 
-  <div id="nc-root" style="display: none;"></div>
+    <!-- Tell Netlify-CMS where its config lives -->
+    <link rel="cms-config-url" href="/admin/config.yaml" type="text/yaml" />
+  </head>
 
-  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-  <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    let repoParam = params.get('repo');
+  <body>
+    <!-- 1) Mount point for the CMS UI -->
+    <div id="nc-root"></div>
 
-    // Your “default” docs repo (owner/name)
-    const defaultRepo = 'my-org/my-default-docs';
+    <!-- 2) Load Identity widget and CMS bundle at the end, after DOM is ready -->
+    <script>
+      window.CMS_MANUAL_INIT = true;
+      document.addEventListener('DOMContentLoaded', function() {
+        // Load Netlify Identity widget
+        var idScript = document.createElement('script');
+        idScript.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+        idScript.onload = function() {
+          // Initialize Identity (open signup enabled)
+          netlifyIdentity.init({ open_signup: true });
+          netlifyIdentity.on('init', function(user) {
+            if (!user) {
+              netlifyIdentity.open('login');
+            }
+          });
+        };
+        document.body.appendChild(idScript);
 
-    function normalizeRepo(input) {
-      try {
-        const u = new URL(input);
-        return u.pathname.slice(1).replace(/\.git$/, '');
-      } catch {
-        return input.trim().replace(/(^\/|\.git$)/g, '');
-      }
-    }
-
-    function initCMS(repo) {
-      document.getElementById('controls').style.display = 'none';
-      document.getElementById('nc-root').style.display = 'block';
-
-      netlifyIdentity.init({ open_signup: true });
-      netlifyIdentity.on('init', user => { if (!user) netlifyIdentity.open('login'); });
-
-      const config = {
-        backend: {
-          name: 'github',
-          repo: repo,
-          branch: 'main',
-          auth_type: 'implicit',
-          app_id: 'Ov23liJDcxTi1GqFJipa'
-        },
-        media_folder: 'docs/images',
-        public_folder: '/images',
-        collections: [{
-          name: 'pages',
-          label: 'Pages',
-          folder: 'docs',
-          create: true,
-          slug: '{{slug}}',
-          fields: [
-            { label: 'Title', name: 'title', widget: 'string' },
-            { label: 'Body',  name: 'body',  widget: 'markdown' }
-          ]
-        }]
-      };
-
-      CMS.init({ config });
-    }
-
-    // If user already provided ?repo=… → load immediately
-    if (repoParam) {
-      initCMS(normalizeRepo(decodeURIComponent(repoParam)));
-    } else {
-      // Otherwise show the two‑button control panel
-      const ctl = document.getElementById('controls');
-      ctl.style.display = 'block';
-
-      document.getElementById('useDefault').onclick = () => {
-        initCMS(defaultRepo);
-      };
-
-      document.getElementById('newProject').onclick = () => {
-        const raw = prompt(
-          "Enter the GitHub repo URL or owner/name for the new docs:\n" +
-          "(e.g. https://github.com/your-org/new-docs or your-org/new-docs)"
-        );
-        if (!raw) return;
-        const repo = normalizeRepo(raw);
-        // update URL so user can bookmark/share
-        history.replaceState(null, '', '?repo=' + encodeURIComponent(repo));
-        initCMS(repo);
-      };
-    }
-  </script>
-</body>
+        // Load Netlify CMS
+        var cmsScript = document.createElement('script');
+        cmsScript.src = 'https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js';
+        cmsScript.onload = function() {
+          // Now manually init the CMS into our #nc-root
+          CMS.init({
+            configPath: '/admin/config.yaml',
+            root: document.getElementById('nc-root')
+          });
+        };
+        document.body.appendChild(cmsScript);
+      });
+    </script>
+  </body>
 </html>
