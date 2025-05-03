@@ -1,101 +1,58 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Content Manager</title>
-    <base href="/" />
-    <style>
-      body { font-family: sans-serif; padding: 2rem; text-align: center; }
-      #controls { max-width: 500px; margin: auto; }
-      #controls button { padding: 0.75rem 1rem; margin: 0.5rem; width: 100%; font-size: 1rem; }
-      #nc-root { margin-top: 2rem; }
-    </style>
-  </head>
+<head>
+  <meta charset="utf-8" />
+  <title>Documentation CMS</title>
+  <base href="/" />
+  <style>
+    body { font-family:sans-serif; padding:2rem; text-align:center; }
+    #controls { max-width:400px; margin:auto; }
+    #controls button { padding:0.75rem; margin:0.5rem 0; width:100%; }
+    #nc-root { margin-top:2rem; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h2>📘 Documentation CMS</h2>
+    <button id="defaultBtn">Continue with Default Project</button>
+    <button id="newBtn">Create New Project</button>
+  </div>
+  <div id="nc-root" style="display:none;"></div>
 
-  <body>
-    <div id="controls" style="display: none;">
-      <h2>📘 Documentation CMS</h2>
-      <button id="defaultBtn">Continue with Default Project</button>
-      <button id="newBtn">Create New Project</button>
-    </div>
-
-    <div id="nc-root" style="display: none;"></div>
-
-    <script>
-      window.CMS_MANUAL_INIT = true;
-
-      const params = new URLSearchParams(window.location.search);
-      const repoParam = params.get("repo");
-      const defaultRepo = "your-org/your-default-repo";  // ← set your default
-
-      function normalizeRepo(input) {
-        try {
-          const u = new URL(input);
-          return u.pathname.slice(1).replace(/\.git$/, "");
-        } catch {
-          return input.trim().replace(/^\/|\.git$/g, "");
-        }
-      }
-
-      function loadCMS(repo) {
-        document.getElementById("controls").style.display = "none";
-        document.getElementById("nc-root").style.display = "block";
-
-        // Identity widget
-        var idScript = document.createElement("script");
-        idScript.src = "https://identity.netlify.com/v1/netlify-identity-widget.js";
-        idScript.onload = () => {
-          netlifyIdentity.init({ open_signup: true });
-          netlifyIdentity.on("init", user => { if (!user) netlifyIdentity.open("login"); });
-        };
-        document.body.appendChild(idScript);
-
-        // Netlify CMS
-        var cmsScript = document.createElement("script");
-        cmsScript.src = "https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js";
-        cmsScript.onload = () => {
-          CMS.init({
-            config: {
-              backend: {
-                name: "git-gateway",
-                branch: "main"
-              },
-              media_folder: "docs/images",
-              public_folder: "/images",
-              collections: [{
-                name: "pages",
-                label: "Pages",
-                folder: "docs",
-                create: true,
-                slug: "{{slug}}",
-                fields: [
-                  { label: "Title", name: "title", widget: "string" },
-                  { label: "Body",  name: "body",  widget: "markdown" }
-                ]
-              }]
-            },
-            root: document.getElementById("nc-root")
-          });
-        };
-        document.body.appendChild(cmsScript);
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        if (repoParam) {
-          loadCMS(normalizeRepo(repoParam));
-        } else {
-          const c = document.getElementById("controls");
-          c.style.display = "block";
-          document.getElementById("defaultBtn").onclick = () => loadCMS(defaultRepo);
-          document.getElementById("newBtn").onclick = () => {
-            const input = prompt("Enter GitHub repo URL or owner/name (e.g. your-org/new-docs)");
-            if (!input) return;
-            const repo = normalizeRepo(input);
-            history.replaceState(null, "", "?repo=" + encodeURIComponent(repo));
-            loadCMS(repo);
-          };
-        }
+  <script>window.CMS_MANUAL_INIT = true;</script>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
+  <script>
+    const defaultRepo = "your-org/your-default-repo";
+    function normalizeRepo(input) {
+      try { return new URL(input).pathname.slice(1).replace(/\.git$/,''); }
+      catch { return input.trim().replace(/^\/|\.git$/g,''); }
+    }
+    async function createRepo(name) {
+      const res = await fetch('/.netlify/functions/create-repo',{method:'POST',body:JSON.stringify({name})});
+      const json = await res.json();
+      return `${json.org}/${json.repo}`;
+    }
+    function loadCMS(repo) {
+      document.getElementById('controls').style.display='none';
+      document.getElementById('nc-root').style.display='block';
+      netlifyIdentity.init({open_signup:true}); netlifyIdentity.on('init',u=>u||netlifyIdentity.open());
+      CMS.init({
+        config: {
+          backend: {name:'git-gateway',branch:'main'},
+          media_folder:'docs/images', public_folder:'/images',
+          collections:[{name:'pages',label:'Pages',folder:'docs',create:true,slug:'{{slug}}',fields:[
+            {label:'Title',name:'title',widget:'string'},
+            {label:'Body',name:'body',widget:'markdown'}]}]
+        }, root:document.getElementById('nc-root')
       });
-    </script>
-  </body>
+    }
+    document.getElementById('defaultBtn').onclick = () => loadCMS(defaultRepo);
+    document.getElementById('newBtn').onclick = async () => {
+      const name = prompt('New repo name (no spaces):','my-new-docs'); if(!name) return;
+      const repo = await createRepo(name);
+      loadCMS(repo);
+    };
+  </script>
+</body>
 </html>
