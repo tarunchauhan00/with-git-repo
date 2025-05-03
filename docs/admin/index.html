@@ -2,47 +2,82 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Docs Editor</title>
+  <title>Docs Admin</title>
   <base href="/" />
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    #repo-form { max-width: 400px; }
+    label, input, button { display: block; width: 100%; margin-bottom: 1rem; }
+    #nc-root { margin-top: 2rem; }
+  </style>
 </head>
 <body>
-  <div id="nc-root"></div>
+
+  <!-- STEP 1: ask user for the target GitHub repo -->
+  <div id="repo-form">
+    <h2>Enter GitHub Repo</h2>
+    <label>
+      Repo (owner/name or full URL)
+      <input type="text" id="repoInput" placeholder="e.g. my‑org/my‑docs-repo" />
+    </label>
+    <button id="startCms">Load CMS →</button>
+  </div>
+
+  <!-- STEP 2: CMS UI mounts here -->
+  <div id="nc-root" style="display:none;"></div>
+
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
   <script>
-    // ensure only logged‑in users proceed
-    netlifyIdentity.init({ open_signup: true });
-    netlifyIdentity.on('init', user => { if (!user) netlifyIdentity.open('login'); });
-    
-    // extract org & repo from query
-    const params = new URLSearchParams(window.location.search);
-    const org  = params.get('org');
-    const repo = params.get('repo');
+    function normalizeRepo(input) {
+      try {
+        const u = new URL(input);
+        return u.pathname.slice(1).replace(/\.git$/, '');
+      } catch {
+        return input.trim().replace(/\.git$/, '');
+      }
+    }
 
-    // dynamically build the CMS config
-    const config = {
-      backend: {
-        name: 'github',
-        repo: `${org}/${repo}`,
-        branch: 'main'
-      },
-      media_folder: 'docs/images',
-      public_folder: '/images',
-      collections: [{
-        name: 'pages',
-        label: 'Pages',
-        folder: 'docs',
-        create: true,
-        slug: '{{slug}}',
-        fields: [
-          { label: 'Title', name: 'title', widget: 'string' },
-          { label: 'Body',  name: 'body',  widget: 'markdown' }
-        ]
-      }]
+    document.getElementById('startCms').onclick = () => {
+      const raw = document.getElementById('repoInput').value;
+      if (!raw) return alert('Please enter a repo.');
+      const repo = normalizeRepo(raw);
+
+      document.getElementById('repo-form').style.display = 'none';
+      document.getElementById('nc-root').style.display = 'block';
+
+      // Initialize Netlify Identity for GitHub OAuth
+      netlifyIdentity.init({ open_signup: true });
+      netlifyIdentity.on('init', user => {
+        if (!user) netlifyIdentity.open('login');
+      });
+
+      // Build a dynamic CMS config
+      const config = {
+        backend: {
+          name: 'github',
+          repo: repo,
+          branch: 'main',
+          auth_type: 'implicit',
+          app_id: '<YOUR_GITHUB_OAUTH_APP_CLIENT_ID>'
+        },
+        media_folder: 'docs/images',
+        public_folder: '/images',
+        collections: [{
+          name: 'pages',
+          label: 'Pages',
+          folder: 'docs',
+          create: true,
+          slug: '{{slug}}',
+          fields: [
+            { label: 'Title', name: 'title', widget: 'string' },
+            { label: 'Body',  name: 'body',  widget: 'markdown' }
+          ]
+        }]
+      };
+
+      CMS.init({ config });
     };
-
-    // initialize Netlify CMS with our dynamic config
-    CMS.init({ config });
   </script>
 </body>
 </html>
