@@ -1,17 +1,34 @@
 // netlify/functions/create-repo.js
-// npm install @octokit/rest
 const { Octokit } = require("@octokit/rest");
 
 exports.handler = async (event) => {
+  // 1. Log incoming body + your env
+  console.log("⎈ event.body:", event.body);
+  console.log("⎈ ENV:",
+    "TEMPLATE_OWNER=", process.env.TEMPLATE_OWNER,
+    "TEMPLATE_REPO=",  process.env.TEMPLATE_REPO,
+    "GITHUB_TOKEN=",   process.env.GITHUB_TOKEN ? "[exists]" : "[missing]"
+  );
+
+  if (!process.env.TEMPLATE_OWNER || !process.env.TEMPLATE_REPO || !process.env.GITHUB_TOKEN) {
+    return {
+      statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({
+        error: "Missing one of TEMPLATE_OWNER, TEMPLATE_REPO, or GITHUB_TOKEN"
+      })
+    };
+  }
+
   try {
     const { name } = JSON.parse(event.body);
     const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
     const resp = await octokit.request(
-      'POST /repos/{template_owner}/{template_repo}/generate',
+      "POST /repos/{template_owner}/{template_repo}/generate",
       {
-        template_owner: process.env.TEMPLATE_OWNER,  // e.g. your GitHub org
-        template_repo:  process.env.TEMPLATE_REPO,   // the mkdocs‑template repo
+        template_owner: process.env.TEMPLATE_OWNER,
+        template_repo:  process.env.TEMPLATE_REPO,
         name,
         owner:          process.env.TEMPLATE_OWNER,
         include_all_branches: false,
@@ -19,18 +36,21 @@ exports.handler = async (event) => {
       }
     );
 
+    console.log("✅ generated repo:", resp.data.full_name);
+
     return {
       statusCode: 200,
-      headers: { 'Access-Control-Allow-Origin': '*' },
+      headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({
         org:  process.env.TEMPLATE_OWNER,
         repo: resp.data.name
       })
     };
   } catch (e) {
+    console.error("❌ error generating:", e);
     return {
       statusCode: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' },
+      headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ error: e.message })
     };
   }
