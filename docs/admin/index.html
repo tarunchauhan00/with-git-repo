@@ -24,15 +24,17 @@
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
   <script>
-    const defaultRepo = "https://github.com/tarunchauhan00/with-git-repo";  // e.g. "your-org/your-default-repo"
+    // your “default” docs repo (owner/name)
+    const defaultRepo = "https://github.com/tarunchauhan00/with-git-repo";  
 
     async function createRepo(name) {
       const res = await fetch('/.netlify/functions/create-repo', {
         method: 'POST',
         body: JSON.stringify({ name })
       });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
+      const text = await res.text();
+      if (!res.ok) throw new Error(text);
+      const json = JSON.parse(text);
       return `${json.org}/${json.repo}`;
     }
 
@@ -69,6 +71,7 @@
     }
 
     document.getElementById('defaultBtn').onclick = () => loadCMS(defaultRepo);
+
     document.getElementById('newBtn').onclick = async () => {
       const name = prompt('New repo name (no spaces):', 'my-new-docs');
       if (!name) return;
@@ -77,7 +80,7 @@
         loadCMS(repo);
       } catch (err) {
         alert('Error creating repo: ' + err.message);
-        console.error(err);
+        console.error('createRepo error:', err);
       }
     };
   </script>

@@ -1,15 +1,17 @@
 // netlify/functions/create-repo.js
+// npm install @octokit/rest
 const { Octokit } = require("@octokit/rest");
 
 exports.handler = async (event) => {
-  // 1. Log incoming body + your env
-  console.log("⎈ event.body:", event.body);
+  // --- DEBUG LOGGING: inspect inputs ---
+  console.log("⎈ Request body:", event.body);
   console.log("⎈ ENV:",
     "TEMPLATE_OWNER=", process.env.TEMPLATE_OWNER,
     "TEMPLATE_REPO=",  process.env.TEMPLATE_REPO,
-    "GITHUB_TOKEN=",   process.env.GITHUB_TOKEN ? "[exists]" : "[missing]"
+    "GITHUB_TOKEN=",   process.env.GITHUB_TOKEN ? "[present]" : "[missing]"
   );
 
+  // Validate env
   if (!process.env.TEMPLATE_OWNER || !process.env.TEMPLATE_REPO || !process.env.GITHUB_TOKEN) {
     return {
       statusCode: 500,
@@ -36,7 +38,7 @@ exports.handler = async (event) => {
       }
     );
 
-    console.log("✅ generated repo:", resp.data.full_name);
+    console.log("✅ Generated repo:", resp.data.full_name);
 
     return {
       statusCode: 200,
@@ -46,8 +48,9 @@ exports.handler = async (event) => {
         repo: resp.data.name
       })
     };
+
   } catch (e) {
-    console.error("❌ error generating:", e);
+    console.error("❌ Generation error:", e);
     return {
       statusCode: 500,
       headers: { "Access-Control-Allow-Origin": "*" },
