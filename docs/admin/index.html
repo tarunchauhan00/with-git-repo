@@ -1,3 +1,4 @@
+<!-- admin/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5,10 +6,10 @@
   <title>Documentation CMS</title>
   <base href="/" />
   <style>
-    body { font-family:sans-serif; padding:2rem; text-align:center; }
-    #controls { max-width:400px; margin:auto; }
-    #controls button { padding:0.75rem; margin:0.5rem 0; width:100%; }
-    #nc-root { margin-top:2rem; }
+    body { font-family: sans-serif; padding: 2rem; text-align: center; }
+    #controls { max-width: 400px; margin: auto; }
+    #controls button { padding: .75rem; margin: .5rem 0; width: 100%; }
+    #nc-root { margin-top: 2rem; }
   </style>
 </head>
 <body>
@@ -17,41 +18,67 @@
     <button id="defaultBtn">Continue with Default Project</button>
     <button id="newBtn">Create New Project</button>
   </div>
-  <div id="nc-root" style="display:none;"></div>
+  <div id="nc-root" style="display: none;"></div>
 
   <script>window.CMS_MANUAL_INIT = true;</script>
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
   <script>
-    const defaultRepo = "your-org/your-default-repo";
-    function normalizeRepo(input) {
-      try { return new URL(input).pathname.slice(1).replace(/\.git$/,''); }
-      catch { return input.trim().replace(/^\/|\.git$/g,''); }
-    }
+    const defaultRepo = "https://github.com/tarunchauhan00/with-git-repo";  // e.g. "your-org/your-default-repo"
+
     async function createRepo(name) {
-      const res = await fetch('/.netlify/functions/create-repo',{method:'POST',body:JSON.stringify({name})});
+      const res = await fetch('/.netlify/functions/create-repo', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+      });
+      if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       return `${json.org}/${json.repo}`;
     }
+
     function loadCMS(repo) {
-      document.getElementById('controls').style.display='none';
-      document.getElementById('nc-root').style.display='block';
-      netlifyIdentity.init({open_signup:true}); netlifyIdentity.on('init',u=>u||netlifyIdentity.open());
+      document.getElementById('controls').style.display = 'none';
+      document.getElementById('nc-root').style.display    = 'block';
+
+      netlifyIdentity.init({ open_signup: true });
+      netlifyIdentity.on('init', user => user || netlifyIdentity.open());
+
       CMS.init({
         config: {
-          backend: {name:'git-gateway',branch:'main'},
-          media_folder:'docs/images', public_folder:'/images',
-          collections:[{name:'pages',label:'Pages',folder:'docs',create:true,slug:'{{slug}}',fields:[
-            {label:'Title',name:'title',widget:'string'},
-            {label:'Body',name:'body',widget:'markdown'}]}]
-        }, root:document.getElementById('nc-root')
+          backend: {
+            name:   'git-gateway',
+            repo:   repo,        // ← dynamically point at this repo
+            branch: 'main'
+          },
+          media_folder: 'docs/images',
+          public_folder: '/images',
+          collections: [{
+            name:   'pages',
+            label:  'Pages',
+            folder: 'docs',
+            create: true,
+            slug:   '{{slug}}',
+            fields: [
+              { label: 'Title', name: 'title', widget: 'string' },
+              { label: 'Body',  name: 'body',  widget: 'markdown' }
+            ]
+          }]
+        },
+        root: document.getElementById('nc-root')
       });
     }
+
     document.getElementById('defaultBtn').onclick = () => loadCMS(defaultRepo);
     document.getElementById('newBtn').onclick = async () => {
-      const name = prompt('New repo name (no spaces):','my-new-docs'); if(!name) return;
-      const repo = await createRepo(name);
-      loadCMS(repo);
+      const name = prompt('New repo name (no spaces):', 'my-new-docs');
+      if (!name) return;
+      try {
+        const repo = await createRepo(name);
+        loadCMS(repo);
+      } catch (err) {
+        alert('Error creating repo: ' + err.message);
+        console.error(err);
+      }
     };
   </script>
 </body>
