@@ -25,7 +25,7 @@
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
   <script>
     // your “default” docs repo (owner/name)
-    const defaultRepo = "https://github.com/tarunchauhan00/with-git-repo";  
+    const defaultRepo = "YOUR_DEFAULT_REPO";  // e.g. "acme-inc/company-handbook"
 
     async function createRepo(name) {
       const res = await fetch('/.netlify/functions/create-repo', {
