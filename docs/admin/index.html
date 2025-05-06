@@ -2,79 +2,88 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Documentation CMS</title>
-  <base href="/" />
+  <title>Docs CMS</title>
   <style>
-    body { font-family:sans-serif; padding:2rem; text-align:center; }
-    #controls { max-width:400px; margin:auto; }
-    #controls button { padding:0.75rem; margin:0.5rem 0; width:100%; }
-    #nc-root { margin-top:2rem; }
+    body { font-family:sans-serif; padding:2rem; }
+    #controls { max-width:500px; margin:auto; text-align:center; }
+    button { padding:.75rem; margin:.5rem; width:45%; }
+    #project-list { margin-top:2rem; }
+    #project-list li { cursor:pointer; padding:.5rem; border-bottom:1px solid #eee; }
+    #nc-root { margin-top:2rem; display:none; }
   </style>
 </head>
 <body>
   <div id="controls">
     <h2>📘 Documentation CMS</h2>
-    <button id="defaultBtn">Continue with Default Project</button>
     <button id="newBtn">Create New Project</button>
+    <ul id="project-list"></ul>
   </div>
-  <div id="nc-root" style="display:none;"></div>
+  <div id="nc-root"></div>
 
   <script>window.CMS_MANUAL_INIT = true;</script>
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
+
   <script>
-    const defaultRepo = "https://github.com/tarunchauhan00/with-git-repo";
+    const listEl = document.getElementById("project-list");
 
-    function normalizeRepo(input) {
-      try { return new URL(input).pathname.slice(1).replace(/\.git$/,''); }
-      catch { return input.trim().replace(/^\/|\.git$/g,''); }
-    }
-
-    async function initMkDocsInRepo(repoFullName) {
-      const res = await fetch('/.netlify/functions/init-repo', {
-        method: 'POST',
-        body: JSON.stringify({ repo: repoFullName })
+    // 1) Fetch and render existing projects
+    async function fetchProjects() {
+      const res = await fetch("/.netlify/functions/list-projects");
+      const projects = await res.json();
+      listEl.innerHTML = projects
+        .map(p => `<li data-repo="${p.repo}">${p.repo} – ${new Date(p.created_at).toLocaleString()}</li>`)
+        .join("");
+      listEl.querySelectorAll("li").forEach(li => {
+        li.onclick = () => loadCMS(li.dataset.repo);
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to init repo");
-      return repoFullName;
     }
+
+    // 2) Prompt for GitHub URL, init MkDocs, then reload list & open CMS
+    async function createNew() {
+      const url = prompt("Paste GitHub repo URL (org/repo or full URL):");
+      if (!url) return;
+      const repo = url.replace(/^.*github\.com\//, "").replace(/\.git$/, "");
+      try {
+        await fetch("/.netlify/functions/init-repo", {
+          method: "POST",
+          body: JSON.stringify({ repo })
+        }).then(r => r.ok ? r.json() : Promise.reject(r));
+        await fetchProjects();
+        loadCMS(repo);
+      } catch (e) {
+        const err = await e.text?.() || e.message;
+        alert("Error: " + err);
+        console.error(e);
+      }
+    }
+
+    document.getElementById("newBtn").onclick = createNew;
 
     function loadCMS(repo) {
-      document.getElementById('controls').style.display = 'none';
-      document.getElementById('nc-root').style.display = 'block';
+      document.getElementById("controls").style.display = "none";
+      document.getElementById("nc-root").style.display = "block";
       netlifyIdentity.init({ open_signup: true });
-      netlifyIdentity.on('init', u => u || netlifyIdentity.open());
+      netlifyIdentity.on("init", user => user || netlifyIdentity.open());
       CMS.init({
         config: {
-          backend: { name: 'git-gateway', branch: 'main' },
-          media_folder: 'docs/images',
-          public_folder: '/images',
+          backend: { name: "git-gateway", repo, branch: "main" },
+          media_folder: "docs/images", public_folder: "/images",
           collections: [{
-            name: 'pages', label: 'Pages', folder: 'docs', create: true, slug: '{{slug}}',
+            name: "pages", label: "Pages",
+            folder: "docs", create: true, slug: "{{slug}}",
             fields: [
-              { label: 'Title', name: 'title', widget: 'string' },
-              { label: 'Body', name: 'body', widget: 'markdown' }
+              { label: "Title", name: "title", widget: "string" },
+              { label: "Body", name: "body", widget: "markdown" }
             ]
           }]
         },
-        root: document.getElementById('nc-root')
+        root: document.getElementById("nc-root")
       });
     }
 
-    document.getElementById('defaultBtn').onclick = () => loadCMS(defaultRepo);
-    document.getElementById('newBtn').onclick = async () => {
-      const input = prompt('Paste the GitHub repo URL (must be initialized with git-gateway and empty):');
-      if (!input) return;
-      const repo = normalizeRepo(input);
-      try {
-        await initMkDocsInRepo(repo);
-        loadCMS(repo);
-      } catch (err) {
-        alert("Error initializing repo: " + err.message);
-        console.error("initRepo error:", err);
-      }
-    };
+    // initial load
+    fetchProjects();
   </script>
 </body>
 </html>
