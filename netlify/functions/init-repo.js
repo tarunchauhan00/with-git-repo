@@ -52,28 +52,97 @@ Start editing your documentation here.
 `,
 
       "docs/admin/index.html": `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><title>CMS</title><base href="/"/>
-<style>body{font-family:sans-serif;padding:2rem;text-align:center}#nc-root{margin-top:2rem}</style></head>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Documentation CMS</title>
+  <base href="/" />
+  <style>
+    body { font-family: sans-serif; padding:2rem; text-align:center }
+    #controls { max-width:400px; margin:auto }
+    #controls button { padding:.75rem; margin:.5rem 0; width:100% }
+    #nc-root { margin-top:2rem }
+  </style>
+</head>
 <body>
-  <h2>📘 Documentation CMS</h2><div id="nc-root"></div>
+  <div id="controls">
+    <h2>📘 Documentation CMS</h2>
+    <button id="defaultBtn">Continue with Default Project</button>
+    <button id="newBtn">Create New Project</button>
+  </div>
+  <div id="nc-root" style="display:none"></div>
+
+  <script>window.CMS_MANUAL_INIT = true;</script>
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <script src="https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js"></script>
   <script>
-    netlifyIdentity.init();
-    netlifyIdentity.on('init', u => u||netlifyIdentity.open());
-    CMS.init({ config:{
-      backend:{ name:'git-gateway', branch:'main' },
-      media_folder:'docs/images', public_folder:'/images',
-      collections:[{
-        name:'pages',label:'Pages',folder:'docs',create:true,slug:'{{slug}}',
-        fields:[
-          { label:'Title', name:'title', widget:'string' },
-          { label:'Body',  name:'body',  widget:'markdown' }
-        ]
-      }]
-    }});
+    const defaultRepo = "your-org/your-default-repo";
+
+    function normalizeRepo(input) {
+      try { return new URL(input).pathname.slice(1).replace(/\.git$/,''); }
+      catch { return input.trim().replace(/^\/|\.git$/g,''); }
+    }
+
+    async function initMkDocsInRepo(repo) {
+      const res = await fetch('/.netlify/functions/init-repo', {
+        method: 'POST',
+        body: JSON.stringify({ repo })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'init failed');
+      return repo;
+    }
+
+    function loadCMS(repo) {
+      document.getElementById('controls').style.display = 'none';
+      document.getElementById('nc-root').style.display    = 'block';
+
+      netlifyIdentity.init({ open_signup: true });
+      netlifyIdentity.on('init', u => u || netlifyIdentity.open());
+
+      CMS.init({
+        config: {
+          backend: {
+            name:   'git-gateway',
+            repo:   repo,      // ← tell CMS which repo to use
+            branch: 'main'
+          },
+          media_folder: 'docs/images',
+          public_folder: '/images',
+          collections: [{
+            name:   'pages',
+            label:  'Pages',
+            folder: 'docs',
+            create: true,
+            slug:   '{{slug}}',
+            fields: [
+              { label: 'Title', name: 'title', widget: 'string' },
+              { label: 'Body',  name: 'body',  widget: 'markdown' }
+            ]
+          }]
+        },
+        root: document.getElementById('nc-root')
+      });
+    }
+
+    document.getElementById('defaultBtn').onclick = () => loadCMS(defaultRepo);
+
+    document.getElementById('newBtn').onclick = async () => {
+      const input = prompt('Paste GitHub repo URL (must be empty or git‑gateway enabled):');
+      if (!input) return;
+      const repo = normalizeRepo(input);
+      try {
+        await initMkDocsInRepo(repo);
+        loadCMS(repo);
+      } catch (e) {
+        alert('Error initializing repo: ' + e.message);
+        console.error(e);
+      }
+    };
   </script>
-</body></html>`,
+</body>
+</html>
+`,
 
       "docs/admin/config.yaml": `
 backend:
