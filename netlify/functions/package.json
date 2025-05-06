@@ -1,10 +1,10 @@
 {
-    "name": "create-repo",
-    "version": "1.0.0",
-    "description": "Netlify Function to scaffold a new MkDocs repo via Octokit",
-    "main": "create-repo.js",
-    "dependencies": {
-      "@octokit/rest": "^19.0.7"
-    }
+  "name": "mkdocs-site",
+  "version": "1.0.0",
+  "description": "Netlify Functions for MkDocs project scaffolding & listing",
+  "private": true,
+  "dependencies": {
+    "@octokit/rest":            "^19.0.7",
+    "@supabase/supabase-js":    "^2.26.0"
   }
-  
+}
