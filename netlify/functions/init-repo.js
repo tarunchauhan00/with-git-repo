@@ -148,6 +148,7 @@ Start editing your documentation here.
 backend:
   name: git-gateway
   branch: main
+# local_backend: true    ← remove this for Netlify
 
 media_folder: "docs/images"
 public_folder: "/images"
@@ -161,6 +162,7 @@ collections:
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Body",  name: "body",  widget: "markdown" }
+
 `,
 
       "netlify.toml": `
