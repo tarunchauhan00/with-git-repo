@@ -3,26 +3,54 @@ const { Octokit } = require("@octokit/rest");
 
 exports.handler = async ({ body }) => {
   try {
-    const { repo } = JSON.parse(body);           // e.g. "org-name/repo-name"
+    const { repo } = JSON.parse(body);
     const [owner, repoName] = repo.split("/");
     const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
-    // verify the repo exists & we have access
+    // verify repo exists
     await octokit.repos.get({ owner, repo: repoName });
 
-    // the six files we want to commit
+    // files to seed, including your custom mkdocs.yml
     const files = {
       "mkdocs.yml": `
-site_name: My Docs
-nav:
-  - Home: index.md
-  - Admin: admin/index.html
+site_name: My Docs Site
+site_description: Documentation with Netlify CMS
+
+theme:
+  name: material
+
+# We remove the static nav: section so awesome-pages can auto-generate it.
+# If you want to force-order or hide certain files, see the _.pages trick below.
+
+docs_dir: docs
+
+# Ensure admin UI is published
+include:
+  - admin/**
+
+plugins:
+  - search
+  - awesome-pages:
+      # When a folder has a single page, still show it instead of collapsing
+      collapse_single_pages: false
+
+# Optional extra config for awesome-pages:
+# You can drop a file named docs/_pages in any folder to explicitly list & order pages.
+# Example docs/_pages:
+#   - index.md
+#   - introduction.md
+#   - usage.md
+#   - faq.md
+#   - test-page.md
+#   - test-page-2.md
 `,
+
       "docs/index.md": `
 # Welcome to MkDocs
 
 Start editing your documentation here.
 `,
+
       "docs/admin/index.html": `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/><title>CMS</title><base href="/"/>
 <style>body{font-family:sans-serif;padding:2rem;text-align:center}#nc-root{margin-top:2rem}</style></head>
@@ -103,38 +131,29 @@ mkdocs-awesome-pages-plugin>=2.6
 `
     };
 
-    // iterate each file, fetch existing sha if present, then create/update
+    // for each file: fetch sha if exists, then create/update
     for (const [path, content] of Object.entries(files)) {
       let sha;
       try {
         const { data } = await octokit.repos.getContent({ owner, repo: repoName, path });
         sha = data.sha;
       } catch (err) {
-        // 404 means “file not found” → ok to create
         if (err.status !== 404) throw err;
       }
-
       await octokit.repos.createOrUpdateFileContents({
         owner,
-        repo:    repoName,
+        repo: repoName,
         path,
         message: sha ? `chore: update ${path}` : `chore: add ${path}`,
         content: Buffer.from(content.trimStart()).toString("base64"),
-        branch:  "main",
-        ...(sha ? { sha } : {})             // only include sha when updating
+        branch: "main",
+        ...(sha ? { sha } : {})
       });
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true })
-    };
-  }
-  catch (err) {
+    return { statusCode: 200, body: JSON.stringify({ success: true }) };
+  } catch (err) {
     console.error("init-repo error:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
