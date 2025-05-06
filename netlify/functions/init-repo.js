@@ -11,8 +11,9 @@ exports.handler = async ({ body }) => {
     // 1) verify the repo exists
     await octokit.repos.get({ owner, repo: repoName });
 
-    // 2) define all files to seed (inline admin HTML + YAML)
+    // 2) define all files to seed
     const files = {
+      // MkDocs config
       "mkdocs.yml": `
 site_name: My Docs
 nav:
@@ -20,13 +21,14 @@ nav:
   - Admin: admin/index.html
 `,
 
+      // Homepage
       "docs/index.md": `
 # Welcome to MkDocs
 
 Start editing your documentation here.
 `,
 
-      // Admin UI entry‑point
+      // Netlify CMS admin UI
       "docs/admin/index.html": `<!DOCTYPE html>
 <html>
 <head>
@@ -60,7 +62,7 @@ Start editing your documentation here.
 </body>
 </html>`,
 
-      // Netlify‑CMS config
+      // Netlify CMS config
       "docs/admin/config.yaml": `
 backend:
   name: git-gateway
@@ -78,10 +80,48 @@ collections:
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Body",  name: "body",  widget: "markdown" }
+`,
+
+      // Netlify build settings
+      "netlify.toml": `
+[build]
+  command   = "pip install --upgrade pip && pip install -r requirements.txt && mkdocs build"
+  publish   = "site"
+  functions = "netlify/functions"
+
+[build.environment]
+  PYTHON_VERSION = "3.9"
+
+[context.production.environment]
+  GIT_GATEWAY_ENABLED = "true"
+
+[[redirects]]
+  from   = "/api/*"
+  to     = "/.netlify/functions/git-gateway/:splat"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/admin"
+  to     = "/docs/admin/index.html"
+  status = 200
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+`,
+
+      // Python dependencies
+      "requirements.txt": `
+mkdocs>=1.6
+mkdocs-material>=9.6
+mkdocs-pdf-export-plugin>=0.5
+weasyprint>=65.1
+mkdocs-mermaid2-plugin>=1.2
+mkdocs-awesome-pages-plugin>=2.6
 `
     };
 
-    // 3) commit each file
+    // 3) commit each file to the repo
     for (const [path, content] of Object.entries(files)) {
       await octokit.repos.createOrUpdateFileContents({
         owner,
