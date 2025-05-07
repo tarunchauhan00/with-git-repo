@@ -103,7 +103,6 @@ Start editing your documentation here.
       CMS.init({
         config: {
           backend: {
-            load_config_file: false,
             name:   'git-gateway',
             repo:   repo,      // ← tell CMS which repo to use
             branch: 'main'
